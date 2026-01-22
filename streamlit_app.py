@@ -5,46 +5,63 @@ import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-# Esta deve ser sempre a primeira linha de comando Streamlit
+# Esta deve ser obrigatoriamente a primeira linha de comando do Streamlit
 st.set_page_config(page_title="Simulador EPE - NT 037/2011", layout="wide")
 
 # --- CONTROLE DE TEMA (MODO ESCURO/CLARO) ---
+# Adiciona um botão na barra lateral para trocar as cores
 with st.sidebar:
     st.header("🎨 Aparência")
-    # Toggle para trocar o tema (Padrão: Escuro)
-    use_dark_mode = st.toggle("Modo Escuro", value=True)
+    # Padrão: Modo Escuro ativado
+    dark_mode = st.toggle("Modo Escuro", value=True)
 
-# Define as cores baseadas na escolha
-if use_dark_mode:
+# Definição das Paletas de Cores
+if dark_mode:
     theme_plotly = "plotly_dark"
-    bg_color = "#0e1117"
-    txt_color = "#ffffff"
-    card_color = "#262730"
+    main_bg = "#0e1117"      # Fundo Escuro
+    sec_bg = "#262730"       # Sidebar Escura
+    text_color = "#ffffff"   # Texto Branco
+    input_bg = "#1f2229"     # Fundo input escuro
 else:
     theme_plotly = "plotly_white"
-    bg_color = "#ffffff"
-    txt_color = "#000000"
-    card_color = "#f0f2f6"
+    main_bg = "#ffffff"      # Fundo Claro
+    sec_bg = "#f0f2f6"       # Sidebar Clara
+    text_color = "#000000"   # Texto Preto
+    input_bg = "#ffffff"     # Fundo input branco
 
-# CSS para forçar a mudança visual na interface inteira
+# INJEÇÃO DE CSS (Para garantir que tudo fique legível)
 st.markdown(f'''
     <style>
+    /* 1. Fundo Principal */
     .stApp {{
-        background-color: {bg_color};
-        color: {txt_color};
+        background-color: {main_bg};
+        color: {text_color};
     }}
-    /* Forçar cor dos inputs para garantir leitura */
-    input, .stNumberInput input {{
-        color: {txt_color} !important;
+    /* 2. Sidebar */
+    [data-testid="stSidebar"] {{
+        background-color: {sec_bg};
     }}
-    /* Cor das abas */
-    .stTabs [data-baseweb="tab-list"] button {{
-        color: {txt_color};
+    /* 3. Inputs (Caixas de texto/número) */
+    div[data-baseweb="input"] {{
+        background-color: {input_bg} !important;
+        color: {text_color} !important;
+        border: 1px solid #888;
+    }}
+    input {{
+        color: {text_color} !important;
+    }}
+    /* 4. Textos Gerais */
+    label, .stMarkdown, p, h1, h2, h3 {{
+        color: {text_color} !important;
+    }}
+    /* 5. Abas */
+    button[data-baseweb="tab"] {{
+        color: {text_color} !important;
     }}
     </style>
 ''', unsafe_allow_html=True)
 
-# --- TÍTULO DO APP ---
+# --- TÍTULO ---
 st.title("⚡ Modelagem de Turbina Hidráulica (EPE)")
 st.markdown("Ferramenta baseada na **Nota Técnica EPE-DEE-RE-037/2011-r2**.")
 
@@ -66,20 +83,15 @@ with st.sidebar:
         q_min = st.number_input("Vazão Mín/Unid (m³/s)", value=20.0)
         q_max = st.number_input("Vazão Máx/Unid (m³/s)", value=150.0)
         n_maquinas = st.slider("Nº Máquinas", 1, 20, 6)
-        rend_gerador = st.number_input("Rendimento Gerador (%)", value=98.0)
 
-# --- FUNÇÃO PRINCIPAL DA CURVA ---
+# --- FUNÇÃO PRINCIPAL ---
 def curva_colina(h, q):
     eta = (a02 * q**2) + (a20 * h**2) + (a11 * q * h) + (a01 * q) + (a10 * h) + a00
     return np.clip(eta, 0, 100)
 
-# --- ESTRUTURA DE ABAS ---
+# --- ABAS ---
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📈 3D Interativo", 
-    "📊 2D Interativo", 
-    "⚙️ Otimização Despacho", 
-    "📑 Cálculo de Médias",
-    "📐 Fórmulas (EPE)"
+    "📈 3D Interativo", "📊 2D Interativo", "⚙️ Despacho", "📑 Médias", "📐 Fórmulas"
 ])
 
 # --- ABA 1: 3D ---
@@ -93,8 +105,7 @@ with tab1:
     fig = go.Figure(data=[go.Surface(z=Z, x=H, y=Q, colorscale='Viridis', opacity=0.9)])
     fig.update_layout(
         scene=dict(xaxis_title='Queda (m)', yaxis_title='Vazão (m³/s)', zaxis_title='Eficiência (%)'),
-        margin=dict(l=0, r=0, b=0, t=0), height=600, 
-        template=theme_plotly # Tema dinâmico
+        margin=dict(l=0, r=0, b=0, t=0), height=600, template=theme_plotly
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -107,13 +118,10 @@ with tab2:
         q_2d = np.linspace(q_min, q_max, 100)
         fig_2d = go.Figure(data=go.Contour(
             z=curva_colina(*np.meshgrid(h_2d, q_2d)), x=h_2d, y=q_2d, colorscale='Viridis',
-            contours=dict(coloring='heatmap', showlabels=True, labelfont=dict(color=txt_color)),
+            contours=dict(coloring='heatmap', showlabels=True, labelfont=dict(color=text_color)),
             colorbar=dict(title='η (%)')
         ))
-        fig_2d.update_layout(
-            xaxis_title="Queda (m)", yaxis_title="Vazão (m³/s)", 
-            template=theme_plotly, height=600
-        )
+        fig_2d.update_layout(xaxis_title="Queda (m)", yaxis_title="Vazão (m³/s)", template=theme_plotly, height=600)
         st.plotly_chart(fig_2d, use_container_width=True)
     with col2:
         st.info("Simule um ponto:")
@@ -150,7 +158,6 @@ with tab4:
         df = pd.read_csv(up)
         if {'Queda', 'Vazao'}.issubset(df.columns):
             df['Rend_Otimo'] = df.apply(lambda r: curva_colina(r['Queda'], r['Vazao']/n_maquinas), axis=1)
-            
             fig_line = go.Figure()
             fig_line.add_trace(go.Scatter(y=df['Rend_Otimo'], mode='lines', name='Rendimento'))
             fig_line.update_layout(title="Série Histórica", template=theme_plotly)
@@ -165,12 +172,15 @@ with tab5:
     col_eq1, col_eq2 = st.columns(2)
     with col_eq1:
         st.subheader("1. Rendimento da Turbina (Eq. 3)")
-        st.latex(r'''\\eta_{t}(h,q) = a_{02}q^{2} + a_{20}h^{2} + a_{11}qh + a_{01}q + a_{10}h + a_{00}''')
+        st.latex(r'\eta_{t}(h,q) = a_{02}q^{2} + a_{20}h^{2} + a_{11}qh + a_{01}q + a_{10}h + a_{00}')
+        
         st.subheader("2. Problema de Otimização (Eq. 6)")
-        st.latex(r'''\\text{Max } P_{tot} = \\sum_{i=1}^{n} (\\eta_t(h, q_i) \\cdot q_i \\cdot h \\cdot \\rho \\cdot g)''')
+        st.latex(r'P_{tot} = \sum_{i=1}^{n} (\eta_t(h, q_i) \cdot q_i \cdot h \cdot \rho \cdot g)')
+
     with col_eq2:
-        st.subheader("3. Perda Hidráulica (Eq. 1 e 15)")
-        st.latex(r'''\\Delta h_{med} = \\frac{\\sum (E_m \\cdot \\Delta h_m)}{\\sum E_m}''')
+        st.subheader("3. Perda Hidráulica (Eq. 15)")
+        st.latex(r'\Delta h_{med} = \frac{\sum (E_m \cdot \Delta h_m)}{\sum E_m}')
+        
         st.subheader("4. Rendimento Médio (Eq. 2)")
-        st.latex(r'''\\eta_{med} = \\frac{\\sum_{m=1}^{N} (E_m \\cdot \\eta_{conj,m})}{\\sum_{m=1}^{N} E_m}''')
-        st.latex(r'''\\eta_{conj} = \\eta_t \\times \\eta_g''')
+        st.latex(r'\eta_{med} = \frac{\sum_{m=1}^{N} (E_m \cdot \eta_{conj,m})}{\sum_{m=1}^{N} E_m}')
+        st.latex(r'\eta_{conj} = \eta_t \times \eta_g')
