@@ -2,65 +2,68 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import matplotlib.pyplot as plt
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Modelo de Turbinamento Hidráulico - NT 037/2011", layout="wide")
+st.set_page_config(page_title="Simulador EPE - NT 037/2011", layout="wide")
 
-# --- 2. DEFINIÇÃO DE CORES (DARK MODE FORÇADO) ---
-# Aqui definimos as variáveis fixas para o tema escuro
-theme_plotly = "plotly_dark"
-main_bg = "#0e1117"      # Fundo Principal (Preto/Cinza Azulado)
-sec_bg = "#262730"       # Sidebar (Cinza um pouco mais claro)
-text_color = "#ffffff"   # Texto Branco Puro
-input_bg = "#1f2229"     # Fundo dos Inputs
+# --- 2. VARIAVEIS DE COR (TEMA ESCURO) ---
+bg_color = "#0e1117"        # Fundo principal
+sidebar_bg = "#262730"      # Fundo da barra lateral
+input_bg = "#1f2229"        # Fundo das caixas de texto
+text_color = "#ffffff"      # Cor do texto
+border_color = "#4a4a4a"    # Cor da borda dos inputs
 
-# --- 3. INJEÇÃO DE CSS (ESTILO GLOBAL) ---
-st.markdown(f'''
+# --- 3. INJEÇÃO DE CSS (CORREÇÃO DOS INPUTS BRANCOS) ---
+st.markdown(f"""
     <style>
-    /* Força o fundo e a cor do texto da aplicação inteira */
+    /* 1. Força o fundo escuro geral */
     .stApp {{
-        background-color: {main_bg};
+        background-color: {bg_color};
         color: {text_color};
     }}
     
-    /* Força a cor da barra lateral */
+    /* 2. Força a barra lateral escura */
     section[data-testid="stSidebar"] {{
-        background-color: {sec_bg};
+        background-color: {sidebar_bg};
     }}
     
-    /* Corrige a cor de fundo e texto das caixas de entrada (Inputs) */
-    div[data-baseweb="input"] {{
+    /* 3. CORREÇÃO CRÍTICA DOS INPUTS (Caixas de Número) */
+    /* Alvo: O container do input numérico */
+    div[data-testid="stNumberInput"] div[data-baseweb="input"] {{
         background-color: {input_bg} !important;
-        color: {text_color} !important;
-        border: 1px solid #4a4a4a; /* Borda sutil */
-    }}
-    input {{
+        border: 1px solid {border_color} !important;
         color: {text_color} !important;
     }}
     
-    /* Garante que todos os textos (Títulos, parágrafos, labels) sejam brancos */
-    h1, h2, h3, p, label, .stMarkdown {{
+    /* Alvo: O próprio campo de digitação dentro do container */
+    div[data-testid="stNumberInput"] input {{
+        background-color: transparent !important; /* Fica transparente para mostrar a cor do container */
         color: {text_color} !important;
     }}
     
-    /* Ajuste visual das abas */
+    /* 4. Labels e Textos (Garante que não fiquem cinza escuro) */
+    label, p, h1, h2, h3, .stMarkdown {{
+        color: {text_color} !important;
+    }}
+    
+    /* 5. Botões das abas */
     button[data-baseweb="tab"] {{
         color: {text_color} !important;
     }}
     </style>
-''', unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# --- 4. TÍTULO E CABEÇALHO ---
+# --- 4. TÍTULO ---
 st.title("⚡ Modelagem de Turbina Hidráulica (EPE)")
 st.markdown("Ferramenta baseada na **Nota Técnica EPE-DEE-RE-037/2011-r2**.")
 
-# --- 5. BARRA LATERAL (INPUTS) ---
+# --- 5. BARRA LATERAL (PARÂMETROS) ---
 with st.sidebar:
     st.header("⚙️ Parâmetros")
     
     with st.expander("1. Coeficientes da Turbina", expanded=True):
         st.caption("Polinômio (Eq. 3): η = a00 + ...")
+        # Inputs agora devem ficar escuros devido ao CSS acima
         a00 = st.number_input("a00", value=-45.0, format="%.4f")
         a10 = st.number_input("a10 (h)", value=1.8, format="%.4f")
         a01 = st.number_input("a01 (q)", value=1.2, format="%.4f")
@@ -79,7 +82,7 @@ def curva_colina(h, q):
     eta = (a02 * q**2) + (a20 * h**2) + (a11 * q * h) + (a01 * q) + (a10 * h) + a00
     return np.clip(eta, 0, 100)
 
-# --- 7. ESTRUTURA DE ABAS ---
+# --- 7. ABAS ---
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📈 3D Interativo", "📊 2D Interativo", "⚙️ Despacho", "📑 Médias", "📐 Fórmulas"
 ])
@@ -95,8 +98,7 @@ with tab1:
     fig = go.Figure(data=[go.Surface(z=Z, x=H, y=Q, colorscale='Viridis', opacity=0.9)])
     fig.update_layout(
         scene=dict(xaxis_title='Queda (m)', yaxis_title='Vazão (m³/s)', zaxis_title='Eficiência (%)'),
-        margin=dict(l=0, r=0, b=0, t=0), height=600, 
-        template=theme_plotly # FORÇADO: DARK
+        margin=dict(l=0, r=0, b=0, t=0), height=600, template="plotly_dark"
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -112,10 +114,7 @@ with tab2:
             contours=dict(coloring='heatmap', showlabels=True, labelfont=dict(color='white')),
             colorbar=dict(title='η (%)')
         ))
-        fig_2d.update_layout(
-            xaxis_title="Queda (m)", yaxis_title="Vazão (m³/s)", 
-            template=theme_plotly, height=600
-        )
+        fig_2d.update_layout(xaxis_title="Queda (m)", yaxis_title="Vazão (m³/s)", template="plotly_dark", height=600)
         st.plotly_chart(fig_2d, use_container_width=True)
     with col2:
         st.info("Simule um ponto:")
@@ -154,7 +153,7 @@ with tab4:
             df['Rend_Otimo'] = df.apply(lambda r: curva_colina(r['Queda'], r['Vazao']/n_maquinas), axis=1)
             fig_line = go.Figure()
             fig_line.add_trace(go.Scatter(y=df['Rend_Otimo'], mode='lines', name='Rendimento'))
-            fig_line.update_layout(title="Série Histórica", template=theme_plotly)
+            fig_line.update_layout(title="Série Histórica", template="plotly_dark")
             st.plotly_chart(fig_line, use_container_width=True)
         else: st.error("CSV inválido.")
 
